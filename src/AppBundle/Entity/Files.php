@@ -18,7 +18,7 @@ class Files
     private $id;
 
     /**
-     * @ORM\Column(type="string", length=50, nullable=false, name="md5")
+     * @ORM\Column(type="string", length=50, nullable=true, name="md5")
      */
     private $md5;
 

@@ -21,7 +21,7 @@ services:
 
     app.catlog:
         class: AppBundle\Service\Catlog
-        arguments: ["@doctrine.orm.default_entity_manager", "%kernel.project_dir%"]
+        arguments: ["@doctrine.orm.default_entity_manager", "%kernel.project_dir%", "@session"]
 
     # makes classes in src/AppBundle available to be used as services
     # this creates a service per class whose id is the fully-qualified class name

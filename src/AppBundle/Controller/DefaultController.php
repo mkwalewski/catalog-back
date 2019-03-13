@@ -47,7 +47,20 @@ class DefaultController extends Controller
     public function addCatalogFileAction (Request $request)
     {
         $data = Helper::getDataFromRequest($request, ['catalog_disk_id','path']);
-        $response = $this->container->get('app.catlog')->addCatalogFile($data['catalog_disk_id'],$data['path']);
+        $this->container->get('app.catlog')->addCatalogFile($data['catalog_disk_id'],$data['path']);
+        $response = [
+            'alerts' => $request->getSession()->getFlashBag()->all()
+        ];
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/cancel_add_catalog_file", name="cancel_add_catalog_file")
+     */
+    public function cancelAddCatalogFileAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['catalog_disk_id']);
+        $response = $this->container->get('app.catlog')->cancelAddCatalogFile($data['catalog_disk_id']);
         return new JsonResponse($response);
     }
 }

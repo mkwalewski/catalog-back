@@ -16,3 +16,6 @@
 !var/SymfonyRequirements.php
 /vendor/
 /web/bundles/
+/app/*.db
+/web/temp/*
+!/web/temp/.gitkeep
