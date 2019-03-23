@@ -5,7 +5,7 @@ namespace AppBundle\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * @ORM\Entity(repositoryClass="AppBundle\Repository\FilesCacheRepository")
+ * @ORM\Entity(repositoryClass="AppBundle\Repository\FilesRepository")
  * @ORM\Table(name="files")
  */
 class Files
@@ -23,7 +23,7 @@ class Files
     private $md5;
 
     /**
-     * @ORM\Column(type="string", length=300, nullable=true, name="folder")
+     * @ORM\Column(type="string", length=300, nullable=false, name="folder")
      */
     private $folder;
 
@@ -53,6 +53,11 @@ class Files
     private $size;
 
     /**
+     * @ORM\Column(type="string", length=20, nullable=true, name="size_formatted")
+     */
+    private $sizeFormatted;
+
+    /**
      * @ORM\Column(type="string", length=10, nullable=false, name="type")
      */
     private $type;
@@ -61,6 +66,11 @@ class Files
      * @ORM\Column(type="integer", nullable=false, name="length")
      */
     private $length;
+
+    /**
+     * @ORM\Column(type="string", length=20, nullable=true, name="length_formatted")
+     */
+    private $lengthFormatted;
 
     /**
      * @ORM\Column(type="string", length=20, nullable=true, name="video_format")
@@ -334,6 +344,30 @@ class Files
     }
 
     /**
+     * Set sizeFormatted
+     *
+     * @param string $sizeFormatted
+     *
+     * @return Files
+     */
+    public function setSizeFormatted($sizeFormatted)
+    {
+        $this->sizeFormatted = $sizeFormatted;
+
+        return $this;
+    }
+
+    /**
+     * Get sizeFormatted
+     *
+     * @return string
+     */
+    public function getSizeFormatted()
+    {
+        return $this->sizeFormatted;
+    }
+
+    /**
      * Set type
      *
      * @param string $type
@@ -379,6 +413,30 @@ class Files
     public function getLength()
     {
         return $this->length;
+    }
+
+    /**
+     * Set lengthFormatted
+     *
+     * @param string $lengthFormatted
+     *
+     * @return Files
+     */
+    public function setLengthFormatted($lengthFormatted)
+    {
+        $this->lengthFormatted = $lengthFormatted;
+
+        return $this;
+    }
+
+    /**
+     * Get lengthFormatted
+     *
+     * @return string
+     */
+    public function getLengthFormatted()
+    {
+        return $this->lengthFormatted;
     }
 
     /**

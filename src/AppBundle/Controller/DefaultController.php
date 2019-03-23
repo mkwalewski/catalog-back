@@ -25,9 +25,7 @@ class DefaultController extends Controller
     public function getListOfFoldersAction (Request $request)
     {
         $data = Helper::getDataFromRequest($request, ['path']);
-        //$data = $this->getDataFromRequest($request, ['path']);
         $response = $this->container->get('app.catlog')->getFolders($data['path']);
-        //$response = $this->container->get('app.catlog')->getFolders($request->request->get('path'));
         return new JsonResponse($response);
     }
 
@@ -36,8 +34,18 @@ class DefaultController extends Controller
      */
     public function addCatalogAction (Request $request)
     {
-        $data = Helper::getDataFromRequest($request, ['name','path']);
-        $response = $this->container->get('app.catlog')->addCatalog($data['name'],$data['path']);
+        $data = Helper::getDataFromRequest($request, ['group_id','name','path','recursively']);
+        $response = $this->container->get('app.catlog')->addCatalog($data['group_id'],$data['name'],$data['path'],$data['recursively']);
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/get_catalog_disks", name="get_catalog_disks")
+     */
+    public function getCatalogDisksAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['group_id']);
+        $response = $this->container->get('app.catlog')->getCatalogDisksByGroupId($data['group_id']);
         return new JsonResponse($response);
     }
 
@@ -55,12 +63,47 @@ class DefaultController extends Controller
     }
 
     /**
+     * @Route("/add_group", name="add_group")
+     */
+    public function addGroupAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['name']);
+        $this->container->get('app.catlog')->addGroup($data['name']);
+        $response = [
+            'alerts' => $request->getSession()->getFlashBag()->all()
+        ];
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/get_list_of_groups", name="get_list_of_groups")
+     */
+    public function getListOfGroupsAction (Request $request)
+    {
+        $response = $this->container->get('app.catlog')->getGroups();
+        return new JsonResponse($response);
+    }
+
+    /**
      * @Route("/cancel_add_catalog_file", name="cancel_add_catalog_file")
      */
     public function cancelAddCatalogFileAction (Request $request)
     {
         $data = Helper::getDataFromRequest($request, ['catalog_disk_id']);
-        $response = $this->container->get('app.catlog')->cancelAddCatalogFile($data['catalog_disk_id']);
+        $this->container->get('app.catlog')->deleteCatalogDisk($data['catalog_disk_id']);
+        $response = [
+            'alerts' => $request->getSession()->getFlashBag()->all()
+        ];
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/get_catalog_folders", name="get_catalog_folders")
+     */
+    public function testAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['disk_id']);
+        $response = $this->container->get('app.catlog')->getTreeFolders($data['disk_id']);
         return new JsonResponse($response);
     }
 }

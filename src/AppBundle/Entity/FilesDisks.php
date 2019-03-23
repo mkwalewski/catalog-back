@@ -18,17 +18,12 @@ class FilesDisks
     private $id;
 
     /**
-     * @ORM\Column(type="smallint", nullable=false, name="type")
-     */
-    private $type;
-
-    /**
-     * @ORM\Column(type="string", length=300, nullable=true, name="path")
+     * @ORM\Column(type="string", length=300, nullable=false, name="path")
      */
     private $path;
 
     /**
-     * @ORM\Column(type="string", length=100, nullable=true, name="name")
+     * @ORM\Column(type="string", length=100, nullable=false, name="name")
      */
     private $name;
 
@@ -36,6 +31,12 @@ class FilesDisks
      * @ORM\OneToMany(targetEntity="AppBundle\Entity\Files", mappedBy="FilesDisks")
      */
     private $Files;
+
+    /**
+     * @ORM\ManyToOne(targetEntity="AppBundle\Entity\FilesGroups", inversedBy="FilesDisks")
+     * @ORM\JoinColumn(name="files_groups_id", referencedColumnName="id", nullable=false)
+     */
+    private $FilesGroups;
     /**
      * Constructor
      */
@@ -52,30 +53,6 @@ class FilesDisks
     public function getId()
     {
         return $this->id;
-    }
-
-    /**
-     * Set type
-     *
-     * @param integer $type
-     *
-     * @return FilesDisks
-     */
-    public function setType($type)
-    {
-        $this->type = $type;
-
-        return $this;
-    }
-
-    /**
-     * Get type
-     *
-     * @return integer
-     */
-    public function getType()
-    {
-        return $this->type;
     }
 
     /**
@@ -158,5 +135,29 @@ class FilesDisks
     public function getFiles()
     {
         return $this->Files;
+    }
+
+    /**
+     * Set filesGroups
+     *
+     * @param \AppBundle\Entity\FilesGroups $filesGroups
+     *
+     * @return FilesDisks
+     */
+    public function setFilesGroups(\AppBundle\Entity\FilesGroups $filesGroups)
+    {
+        $this->FilesGroups = $filesGroups;
+
+        return $this;
+    }
+
+    /**
+     * Get filesGroups
+     *
+     * @return \AppBundle\Entity\FilesGroups
+     */
+    public function getFilesGroups()
+    {
+        return $this->FilesGroups;
     }
 }

@@ -19,9 +19,12 @@ services:
         tags:
            - { name: kernel.event_listener, event: kernel.response, method: onKernelResponse }
 
+    app.images:
+        class: AppBundle\Service\Images
+
     app.catlog:
         class: AppBundle\Service\Catlog
-        arguments: ["@doctrine.orm.default_entity_manager", "%kernel.project_dir%", "@session"]
+        arguments: ["@doctrine.orm.default_entity_manager", "%kernel.project_dir%", "@session", "@app.images"]
 
     # makes classes in src/AppBundle available to be used as services
     # this creates a service per class whose id is the fully-qualified class name

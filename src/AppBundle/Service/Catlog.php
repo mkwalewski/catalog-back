@@ -4,19 +4,37 @@ namespace AppBundle\Service;
 
 use AppBundle\Entity\Files;
 use AppBundle\Entity\FilesDisks;
+use AppBundle\Entity\FilesFrames;
+use AppBundle\Entity\FilesGroups;
 
 class Catlog
 {
     const startTime = 15;
+    const tempDir = 'temp';
+    const tempThumbFileName = '00000001.jpg';
+    const thumbsDir = 'thumbs';
+    const thumbWidth = 300;
+    const thumbHeight = 300;
+    const thumbCompression = 85;
+    const thumbExt = 'jpg';
     const excludedFolders = ['$RECYCLE.BIN','System Volume Information'];
+    const audioExtensions = ['mp3'];
     const imagesExtensions = ['jpg','jpeg'];
     const videoExtensions = ['avi','flv','mkv','mov','mp4','mpg','mpeg','ogv','ogg','wmv'];
 
-    public function __construct ($em, $dir, $session)
+    public function __construct ($em, $dir, $session, \AppBundle\Service\Images $images)
     {
         $this->em = $em;
-        $this->dir = $dir;
+        $this->dir = $this->addDirToPath($dir, 'web');
         $this->session = $session;
+        $this->images = $images;
+    }
+
+    private function addDirToPath ($path, $dir, $addSeparatorAtTheEnd = true)
+    {
+        $path = rtrim($path, DIRECTORY_SEPARATOR);
+        $dir = trim($dir, DIRECTORY_SEPARATOR);
+        return $addSeparatorAtTheEnd ? $path . DIRECTORY_SEPARATOR . $dir . DIRECTORY_SEPARATOR : $path . DIRECTORY_SEPARATOR . $dir;
     }
 
     public function getPartitions ()
@@ -61,7 +79,7 @@ class Catlog
         return $folders;
     }
 
-    public function getFiles ($path)
+    public function getFiles ($path, $recursively)
     {
         $files = [];
 
@@ -74,6 +92,10 @@ class Catlog
                     continue;
                 }
                 $fullPath = $path . DIRECTORY_SEPARATOR . $file;
+                if (is_dir($fullPath) && $recursively)
+                {
+                    $files = array_merge($files, $this->getFiles($fullPath, $recursively));
+                }
                 if (is_file ($fullPath))
                 {
                     $files[] = $fullPath;
@@ -84,27 +106,95 @@ class Catlog
         return $files;
     }
 
-    public function addCatalog ($name, $path)
+    public function addCatalog ($groupId, $name, $path, $recursively)
     {
         $id = 0;
         $files = [];
 
         if ($name && $path)
         {
+            $filesGroups = $this->em->getRepository('AppBundle:FilesGroups')->find($groupId);
             $disk = new FilesDisks();
-            $disk->setType(1);
             $disk->setName($name);
             $disk->setPath($path);
+            $disk->setFilesGroups($filesGroups);
             $this->em->persist($disk);
             $this->em->flush();
             $id = $disk->getId();
-            $files = $this->getFiles($path);
+            $files = $this->getFiles($path, $recursively);
         }
 
         $data = [
             'id' => $id,
             'files' => $files
         ];
+
+        return $data;
+    }
+
+    public function addGroup ($name)
+    {
+        if ($name)
+        {
+            try
+            {
+                $group = new FilesGroups();
+                $group->setName($name);
+                $this->em->persist($group);
+                $this->em->flush();
+                $this->session->getFlashBag()->add('success', 'Pomyślnie dodano grupę');
+            }
+            catch (\Exception $exception)
+            {
+                $this->session->getFlashBag()->add('error', $exception->getMessage());
+            }
+        }
+    }
+
+    public function getGroups ()
+    {
+        $data = [];
+        $groups = $this->em->getRepository('AppBundle:FilesGroups')->findAll();
+
+        if ($groups)
+        {
+            foreach ($groups as $group)
+            {
+                $data[] = [
+                    'id' => $group->getId(),
+                    'name' => $group->getName(),
+                ];
+            }
+        }
+
+        return $data;
+    }
+
+    public function getCatalogDisksByGroupId ($groupId)
+    {
+        $data = [];
+
+        if ($groupId)
+        {
+            $group = $this->em->getRepository('AppBundle:FilesGroups')->find($groupId);
+
+            if ($group)
+            {
+                $disks = $this->em->getRepository('AppBundle:FilesDisks')->findBy(['FilesGroups'=>$group]);
+
+                if ($disks)
+                {
+                    foreach ($disks as $disk)
+                    {
+                        $data[] = [
+                            'id' => $disk->getId(),
+                            'path' => $disk->getPath(),
+                            'name' => $disk->getName(),
+                        ];
+                    }
+                }
+            }
+        }
 
         return $data;
     }
@@ -128,6 +218,12 @@ class Catlog
                     $data['type'] = 'image';
                     $data['md5'] = $this->calcMD5($path);
                     $data = array_merge($data, $this->getImageData($path));
+                }
+                elseif (in_array($data['extension'], self::audioExtensions))
+                {
+                    $data['type'] = 'audio';
+                    $data['md5'] = $this->calcMD5($path);
+                    $data = array_merge($data, $this->getAudioData($path));
                 }
                 else
                 {
@@ -163,6 +259,16 @@ class Catlog
                 $file->setFavorite(0);
                 $this->em->persist($file);
                 $this->em->flush();
+                switch ($data['type'])
+                {
+                    case 'video':
+                        $image = $this->addDirToPath($this->dir, self::tempDir) . self::tempThumbFileName;
+                        $this->generateThumb($file, $image, true);
+                        break;
+                    case 'image':
+                        $this->generateThumb($file, $path, false);
+                        break;
+                }
                 $this->session->getFlashBag()->add('success', 'Sukces');
             }
         }
@@ -172,9 +278,46 @@ class Catlog
         }
     }
 
-    public function cancelAddCatalogFile ($catalogDiskId)
+    public function deleteCatalogDisk ($catalogDiskId)
     {
         //@TODO
+        try
+        {
+            $filesDisks = $this->em->getRepository('AppBundle:FilesDisks')->find($catalogDiskId);
+            if ($filesDisks)
+            {
+                $files = $this->em->getRepository('AppBundle:Files')->findBy(['FilesDisks'=>$filesDisks]);
+                if ($files)
+                {
+                    foreach ($files as $file)
+                    {
+                        $filesFrames = $this->em->getRepository('AppBundle:FilesFrames')->findBy(['Files'=>$file]);
+                        if ($filesFrames)
+                        {
+                            foreach ($filesFrames as $frame)
+                            {
+                                $image = $this->addDirToPath($this->dir, $frame->getImage(), false);
+                                if (file_exists ($image))
+                                {
+                                    unlink($image);
+                                }
+                                $this->em->remove($frame);
+                                $this->em->flush();
+                            }
+                        }
+                        $this->em->remove($file);
+                        $this->em->flush();
+                    }
+                }
+                $this->em->remove($filesDisks);
+                $this->em->flush();
+                $this->session->getFlashBag()->add('success', 'Anulowano');
+            }
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
     }
 
     private function calcMD5 ($fullPath)
@@ -242,6 +385,36 @@ class Catlog
         return $data;
     }
 
+    private function getAudioData ($fullPath)
+    {
+        exec('C:\\mplayer\\mplayer -vo null -ao null -endpos 0 -identify "' . $fullPath . '" 2>&1', $out);
+        preg_match_all('#ID_(\w+)=(.+)#', join("\n", $out), $output);
+        $data = [
+            'length' => 0,
+            'audio_format' => NULL,
+            'audio_codec' => NULL,
+            'audio_bitrate' => NULL,
+            'audio_rate' => NULL,
+            'audio_nch' => NULL
+        ];
+        foreach ($output[1] as $key => $value) {
+            switch ($value) {
+                case 'AUDIO_CODEC':
+                case 'AUDIO_FORMAT':
+                    $data[strtolower($value)] = (string) $output[2][$key];
+                    break;
+                case 'AUDIO_BITRATE':
+                case 'AUDIO_RATE':
+                case 'AUDIO_NCH':
+                case 'LENGTH':
+                    $data[strtolower($value)] = (int) $output[2][$key];
+                    break;
+            }
+        }
+
+        return $data;
+    }
+
     private function getImageData ($fullPath)
     {
         $data = [
@@ -258,5 +431,104 @@ class Catlog
         }
 
         return $data;
+    }
+
+    private function generateThumb ($file, $image, $delete = false)
+    {
+        if (file_exists ($image))
+        {
+            $thumb = $this->addDirToPath($this->dir, self::thumbsDir) . $file->getId() . '.' . self::thumbExt;
+            $thumbForDb = '/' . self::thumbsDir . '/' . $file->getId() . '.' . self::thumbExt;
+            if ($this->images->resizeImage($image, $thumb, self::thumbWidth, self::thumbHeight, self::thumbCompression) === true)
+            {
+                $filesFrames = new FilesFrames();
+                $filesFrames->setFiles($file);
+                $filesFrames->setFrame(0);
+                $filesFrames->setTime(NULL);
+                $filesFrames->setImage($thumbForDb);
+                $this->em->persist($filesFrames);
+                $this->em->flush();
+            }
+            if ($delete)
+            {
+                unlink($image);
+            }
+        }
+    }
+
+    private static function buildTreeByPaths ($paths)
+    {
+        if (count($paths) > 0)
+        {
+            $first = array_shift($paths);
+            return [$first => self::buildTreeByPaths($paths)];
+        }
+        elseif (count($paths) === 0)
+        {
+            return [];
+        }
+    }
+
+    private static function buildTree ($treePaths, $path = '')
+    {
+        $tree = [];
+
+        foreach ($treePaths as $key => $folders)
+        {
+            $item = [
+                'text' => $key,
+                'value' => $path . $key . '\\',
+                'opened' => false
+            ];
+            if (count($folders) > 0)
+            {
+                $item['children'] = self::buildTree($folders, $path . $key . '\\');
+            }
+            $tree[] = $item;
+
+        }
+        return $tree;
+    }
+
+    public static function extractPathForTree ($tree, $path)
+    {
+        foreach ($tree as $item)
+        {
+            if (isset($item['children']))
+            {
+                if ($item['value'] == $path . '\\')
+                {
+                    return $item['children'];
+                }
+                else
+                {
+                    return self::extractPathForTree($item['children'], $path);
+                }
+            }
+        }
+    }
+
+    public function getTreeFolders ($catalogDiskId)
+    {
+        $tree = [];
+
+        if ($catalogDiskId)
+        {
+            $catalogDisk = $this->em->getRepository('AppBundle:FilesDisks')->find($catalogDiskId);
+            $treeFolders = $this->em->getRepository('AppBundle:Files')->getTreeFolders($catalogDiskId);
+
+            if ($treeFolders)
+            {
+                foreach ($treeFolders as $row)
+                {
+                    $paths = explode('\\', $row['folder']);
+                    $tree = array_merge_recursive($tree, self::buildTreeByPaths($paths));
+                }
+                $tree = self::buildTree($tree);
+                $tree = self::extractPathForTree($tree, $catalogDisk->getPath());
+            }
+        }
+
+        return $tree;
     }
 }

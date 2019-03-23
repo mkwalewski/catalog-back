@@ -19,3 +19,5 @@
 /app/*.db
 /web/temp/*
 !/web/temp/.gitkeep
+/web/thumbs/*
+!/web/thumbs/.gitkeep
