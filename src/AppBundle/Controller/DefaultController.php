@@ -100,10 +100,28 @@ class DefaultController extends Controller
     /**
      * @Route("/get_catalog_folders", name="get_catalog_folders")
      */
-    public function testAction (Request $request)
+    public function getCatalogFoldersAction (Request $request)
     {
         $data = Helper::getDataFromRequest($request, ['disk_id']);
         $response = $this->container->get('app.catlog')->getTreeFolders($data['disk_id']);
         return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/get_catalog_files", name="get_catalog_files")
+     */
+    public function getCatalogFilesAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['disk_id']);
+        $response = $this->container->get('app.catlog')->getTreeFilesByDiskId($data['disk_id']);
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/update", name="update")
+     */
+    public function updateAction (Request $request)
+    {
+        $this->container->get('app.catlog')->helperUpdate();
     }
 }

@@ -531,4 +531,62 @@ class Catlog
 
         return $tree;
     }
+
+    public function getTreeFilesByDiskId ($diskId)
+    {
+        $files = [];
+
+        if ($diskId)
+        {
+            $treeFiles = $this->em->getRepository('AppBundle:Files')->getTreeFilesByDiskId($diskId);
+
+            if ($treeFiles)
+            {
+                $files = $treeFiles;
+            }
+        }
+
+        return $files;
+    }
+
+    private function formatTime ($time)
+    {
+        $dt = new \DateTime();
+        $dt->add(new \DateInterval('PT' . $time . 'S'));
+        $interval = $dt->diff(new \DateTime());
+        return $interval->format('%H:%I:%S');
+    }
+
+    private function formatSize ($size)
+    {
+        $count = 0;
+        $size = (int) $size;
+        $sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+        while ($size > 1024)
+        {
+            $count++;
+            $size /= 1024;
+        }
+        $size = ($count >= 3) ? round($size, 2) : round($size, 0);
+
+        return $size . ' ' . $sizes[$count];
+    }
+
+    public function helperUpdate ()
+    {
+        $files = $this->em->getRepository('AppBundle:Files')->findAll();
+
+        foreach ($files as $file)
+        {
+            $lengthFormatted = $this->formatTime($file->getLength());
+            $sizeFormatted = $this->formatSize($file->getSize());
+            $file->setLengthFormatted($lengthFormatted);
+            $file->setSizeFormatted($sizeFormatted);
+            $this->em->persist($file);
+            $this->em->flush();
+        }
+        dump($files);
+        die;
+    }
 }
