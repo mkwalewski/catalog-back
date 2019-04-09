@@ -10,6 +10,7 @@ use AppBundle\Entity\FilesGroups;
 class Catlog
 {
     const startTime = 15;
+    const numOfFrames = 30;
     const tempDir = 'temp';
     const tempThumbFileName = '00000001.jpg';
     const thumbsDir = 'thumbs';
@@ -17,6 +18,11 @@ class Catlog
     const thumbHeight = 300;
     const thumbCompression = 85;
     const thumbExt = 'jpg';
+    const imageDir = 'images';
+    const imageWidth = 900;
+    const imageHeight = 900;
+    const imageCompression = 85;
+    const imageExt = 'jpg';
     const excludedFolders = ['$RECYCLE.BIN','System Volume Information'];
     const audioExtensions = ['mp3'];
     const imagesExtensions = ['jpg','jpeg'];
@@ -240,8 +246,10 @@ class Catlog
                 $file->setCreatedTime($data['created_time']);
                 $file->setModifiedTime($data['modified_time']);
                 $file->setSize($data['size']);
+                $file->setSizeFormatted($this->formatSize($data['size']));
                 $file->setType($data['type']);
                 $file->setLength(isset($data['length']) ? $data['length'] : 0);
+                $file->setLengthFormatted($this->formatTime(isset($data['length']) ? $data['length'] : 0));
                 $file->setVideoFormat(isset($data['video_format']) ? $data['video_format'] : NULL);
                 $file->setVideoWidth(isset($data['video_width']) ? $data['video_width'] : NULL);
                 $file->setVideoHeight(isset($data['video_height']) ? $data['video_height'] : NULL);
@@ -296,6 +304,11 @@ class Catlog
                         {
                             foreach ($filesFrames as $frame)
                             {
+                                $thumb = $this->addDirToPath($this->dir, $frame->getThumb(), false);
+                                if (file_exists ($thumb))
+                                {
+                                    unlink($thumb);
+                                }
                                 $image = $this->addDirToPath($this->dir, $frame->getImage(), false);
                                 if (file_exists ($image))
                                 {
@@ -433,26 +446,122 @@ class Catlog
         return $data;
     }
 
-    private function generateThumb ($file, $image, $delete = false)
+    private function generateThumb ($file, $baseImage, $delete = false, $frame = 0, $time = NULL)
     {
-        if (file_exists ($image))
+        if (file_exists ($baseImage))
         {
-            $thumb = $this->addDirToPath($this->dir, self::thumbsDir) . $file->getId() . '.' . self::thumbExt;
-            $thumbForDb = '/' . self::thumbsDir . '/' . $file->getId() . '.' . self::thumbExt;
-            if ($this->images->resizeImage($image, $thumb, self::thumbWidth, self::thumbHeight, self::thumbCompression) === true)
+            $imageForDb = NULL;
+            $thumbForDb = NULL;
+            $baseName = $frame ? $file->getId() . '_' . $frame : $file->getId();
+
+            $image = $this->addDirToPath($this->dir, self::imageDir) . $baseName . '.' . self::imageExt;
+            if ($this->images->resizeImage($baseImage, $image, self::imageWidth, self::imageHeight, self::imageCompression) === true)
             {
-                $filesFrames = new FilesFrames();
-                $filesFrames->setFiles($file);
-                $filesFrames->setFrame(0);
-                $filesFrames->setTime(NULL);
-                $filesFrames->setImage($thumbForDb);
-                $this->em->persist($filesFrames);
-                $this->em->flush();
+                $imageForDb = '/' . self::imageDir . '/' . $baseName . '.' . self::imageExt;
             }
+
+            $thumb = $this->addDirToPath($this->dir, self::thumbsDir) . $baseName . '.' . self::thumbExt;
+            if ($this->images->resizeImage($baseImage, $thumb, self::thumbWidth, self::thumbHeight, self::thumbCompression) === true)
+            {
+                $thumbForDb = '/' . self::thumbsDir . '/' . $baseName . '.' . self::thumbExt;
+            }
+
+            $filesFrames = new FilesFrames();
+            $filesFrames->setFiles($file);
+            $filesFrames->setFrame($frame);
+            $filesFrames->setTime($time);
+            $filesFrames->setThumb($thumbForDb);
+            $filesFrames->setImage($imageForDb);
+            $this->em->persist($filesFrames);
+            $this->em->flush();
+
             if ($delete)
             {
-                unlink($image);
+                unlink($baseImage);
             }
+        }
+    }
+
+    public function getFramesByFileId ($fileId)
+    {
+        $frames = [];
+
+        if ($fileId)
+        {
+            $frames = $this->em->getRepository('AppBundle:FilesFrames')->getFramesByFileId($fileId);
+        }
+
+        return $frames;
+    }
+
+    public function generateFrames ($id)
+    {
+        $frames = [];
+
+        try
+        {
+            if ($id)
+            {
+                $file = $this->em->getRepository('AppBundle:Files')->find($id);
+
+                if ($file)
+                {
+                    $this->deleteFramesByFileId($id);
+                    $length = $file->getLength();
+                    $fullPath = $file->getFolder() . DIRECTORY_SEPARATOR . $file->getFilename() . '.' . $file->getExtension();
+
+                    if (file_exists($fullPath) && $length)
+                    {
+                        $step = ($length > 0) ? floor (($length - self::startTime) / self::numOfFrames) : 0;
+
+                        for ($i = 1; $i <= self::numOfFrames; $i++)
+                        {
+                            $time = self::startTime + ($i * $step);
+                            exec('C:\\mplayer\\mplayer -vo jpeg:outdir=temp -ao null -frames 1 -ss '.$time.' -endpos 0 -identify "'.$fullPath.'" 2>&1',$out);
+                            $image = $this->addDirToPath($this->dir, self::tempDir) . self::tempThumbFileName;
+                            $this->generateThumb($file, $image, true, $i, $this->formatTime($time));
+                        }
+
+                        $this->session->getFlashBag()->add('success', 'Pomyślnie dodano klatki video');
+                        $frames = $this->getFramesByFileId($id);
+                    }
+                }
+            }
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
+
+        return $frames;
+    }
+
+    public function deleteFramesByFileId ($fileId)
+    {
+        try
+        {
+            $frames = $this->getFramesByFileId($fileId);
+
+            foreach ($frames as $frame)
+            {
+                $thumb = $this->addDirToPath($this->dir, $frame['thumb'], false);
+                if (file_exists ($thumb))
+                {
+                    unlink($thumb);
+                }
+                $image = $this->addDirToPath($this->dir, $frame['image'], false);
+                if (file_exists ($image))
+                {
+                    unlink($image);
+                }
+                $frameObject = $this->em->getRepository('AppBundle:FilesFrames')->find($frame['id']);
+                $this->em->remove($frameObject);
+                $this->em->flush();
+            }
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
         }
     }
 
@@ -461,7 +570,7 @@ class Catlog
         if (count($paths) > 0)
         {
             $first = array_shift($paths);
-            return [$first => self::buildTreeByPaths($paths)];
+            return $first ? [$first => self::buildTreeByPaths($paths)] : [];
         }
         elseif (count($paths) === 0)
         {
@@ -505,6 +614,10 @@ class Catlog
                     return self::extractPathForTree($item['children'], $path);
                 }
             }
+            else
+            {
+                return [];
+            }
         }
     }
 
@@ -543,6 +656,11 @@ class Catlog
             if ($treeFiles)
             {
                 $files = $treeFiles;
+
+                foreach ($files as $key => $file)
+                {
+                    $files[$key]['frames'] = [];
+                }
             }
         }
 
@@ -588,5 +706,116 @@ class Catlog
         }
         dump($files);
         die;
+    }
+
+    public function editGroupName ($id, $name)
+    {
+        try
+        {
+            if ($id)
+            {
+                $group = $this->em->getRepository('AppBundle:FilesGroups')->find($id);
+
+                if ($group && $name)
+                {
+                    $group->setName($name);
+                    $this->em->persist($group);
+                    $this->em->flush();
+                    $this->session->getFlashBag()->add('success', 'Pomyślnie zmienionio nazwę grupy');
+                }
+            }
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
+    }
+
+    public function editDiskName ($id, $name)
+    {
+        try
+        {
+            if ($id)
+            {
+                $disk = $this->em->getRepository('AppBundle:FilesDisks')->find($id);
+
+                if ($disk && $name)
+                {
+                    $disk->setName($name);
+                    $this->em->persist($disk);
+                    $this->em->flush();
+                    $this->session->getFlashBag()->add('success', 'Pomyślnie zmienionio nazwę katalogu');
+                }
+            }
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
+    }
+
+    public function toggleFavorite ($id)
+    {
+        $favorite = NULL;
+
+        try
+        {
+            if ($id)
+            {
+                $file = $this->em->getRepository('AppBundle:Files')->find($id);
+
+                if ($file)
+                {
+                    if ($file->getFavorite() == 1)
+                    {
+                        $file->setFavorite(0);
+                    }
+                    else
+                    {
+                        $file->setFavorite(1);
+                    }
+                    $this->em->persist($file);
+                    $this->em->flush();
+                    $this->session->getFlashBag()->add('success', 'Pomyślnie zmienionio status ulubionych');
+                    $favorite = $file->getFavorite();
+                }
+            }
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
+
+        return $favorite;
+    }
+
+    public function openFile ($id)
+    {
+        if ($id)
+        {
+            $file = $this->em->getRepository('AppBundle:Files')->find($id);
+
+            if ($file)
+            {
+                $fileName = $file->getFolder() . DIRECTORY_SEPARATOR . $file->getFilename() . '.' . $file->getExtension();
+                $cmd = 'start /B "" "'.$fileName.'"';
+                pclose(popen($cmd,"r"));
+            }
+        }
+    }
+
+    public function openFolder ($id)
+    {
+        if ($id)
+        {
+            $file = $this->em->getRepository('AppBundle:Files')->find($id);
+
+            if ($file)
+            {
+                $folder = $file->getFolder();
+                $cmd = 'start /B "" explorer "'.$folder.'"';
+                pclose(popen($cmd,"r"));
+            }
+        }
     }
 }

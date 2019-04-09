@@ -31,6 +31,7 @@ class FilesRepository extends \Doctrine\ORM\EntityRepository
                 'f.lengthFormatted',
                 'f.videoWidth',
                 'f.videoHeight',
+                'f.favorite',
                 'ff.image'
             ))
             ->leftJoin('AppBundle:FilesFrames', 'ff', 'WITH', 'ff.Files = f.id AND ff.frame = 0')

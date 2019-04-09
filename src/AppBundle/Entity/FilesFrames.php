@@ -5,7 +5,7 @@ namespace AppBundle\Entity;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * @ORM\Entity
+ * @ORM\Entity(repositoryClass="AppBundle\Repository\FilesFramesRepository")
  * @ORM\Table(name="files_frames")
  */
 class FilesFrames
@@ -23,12 +23,17 @@ class FilesFrames
     private $frame;
 
     /**
-     * @ORM\Column(type="time", nullable=true, name="time")
+     * @ORM\Column(type="string", length=20, nullable=true, name="time")
      */
     private $time;
 
     /**
-     * @ORM\Column(type="string", length=300, nullable=false, name="image")
+     * @ORM\Column(type="string", length=300, nullable=true, name="thumb")
+     */
+    private $thumb;
+
+    /**
+     * @ORM\Column(type="string", length=300, nullable=true, name="image")
      */
     private $image;
 
@@ -94,6 +99,30 @@ class FilesFrames
     public function getTime()
     {
         return $this->time;
+    }
+
+    /**
+     * Set thumb
+     *
+     * @param string $thumb
+     *
+     * @return FilesFrames
+     */
+    public function setThumb($thumb)
+    {
+        $this->thumb = $thumb;
+
+        return $this;
+    }
+
+    /**
+     * Get thumb
+     *
+     * @return string
+     */
+    public function getThumb()
+    {
+        return $this->thumb;
     }
 
     /**

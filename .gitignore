@@ -21,3 +21,5 @@
 !/web/temp/.gitkeep
 /web/thumbs/*
 !/web/thumbs/.gitkeep
+/web/images/*
+!/web/images/.gitkeep

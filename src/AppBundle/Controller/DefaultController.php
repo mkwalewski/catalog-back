@@ -118,6 +118,93 @@ class DefaultController extends Controller
     }
 
     /**
+     * @Route("/edit_group_name", name="edit_group_name")
+     */
+    public function editGroupNameAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['id','name']);
+        $this->container->get('app.catlog')->editGroupName($data['id'],$data['name']);
+        $response = [
+            'alerts' => $request->getSession()->getFlashBag()->all()
+        ];
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/edit_disk_name", name="edit_disk_name")
+     */
+    public function editDiskNameAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['id','name']);
+        $this->container->get('app.catlog')->editDiskName($data['id'],$data['name']);
+        $response = [
+            'alerts' => $request->getSession()->getFlashBag()->all()
+        ];
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/toggle_favorite", name="toggle_favorite")
+     */
+    public function toggleFavoriteAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['id']);
+        $status = $this->container->get('app.catlog')->toggleFavorite($data['id']);
+        $response = [
+            'status' => $status,
+            'alerts' => $request->getSession()->getFlashBag()->all()
+        ];
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/get_frames", name="get_frames")
+     */
+    public function getFramesAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['id']);
+        $frames = $this->container->get('app.catlog')->getFramesByFileId($data['id']);
+        $response = [
+            'frames' => $frames
+        ];
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/generate_frames", name="generate_frames")
+     */
+    public function generateFramesAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['id']);
+        $frames = $this->container->get('app.catlog')->generateFrames($data['id']);
+        $response = [
+            'frames' => $frames,
+            'alerts' => $request->getSession()->getFlashBag()->all()
+        ];
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/open_file", name="open_file")
+     */
+    public function openFileAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['id']);
+        $this->container->get('app.catlog')->openFile($data['id']);
+        return new JsonResponse([]);
+    }
+
+    /**
+     * @Route("/open_folder", name="open_folder")
+     */
+    public function openFolderAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['id']);
+        $this->container->get('app.catlog')->openFolder($data['id']);
+        return new JsonResponse([]);
+    }
+
+    /**
      * @Route("/update", name="update")
      */
     public function updateAction (Request $request)
