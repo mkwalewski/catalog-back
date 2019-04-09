@@ -286,7 +286,7 @@ class Catlog
         }
     }
 
-    public function deleteCatalogDisk ($catalogDiskId)
+    /*public function deleteCatalogDisk ($catalogDiskId)
     {
         //@TODO
         try
@@ -325,6 +325,128 @@ class Catlog
                 $this->em->remove($filesDisks);
                 $this->em->flush();
                 $this->session->getFlashBag()->add('success', 'Anulowano');
+            }
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
+    }*/
+
+    public function deleteCatalogGroup ($groupId)
+    {
+        try
+        {
+            $this->deleteGroupById($groupId);
+            $this->session->getFlashBag()->add('success', 'Pomyślnie usunięto grupę');
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
+    }
+
+    private function deleteGroupById ($groupId)
+    {
+        try
+        {
+            if ($groupId)
+            {
+                $group = $this->em->getRepository('AppBundle:FilesGroups')->find($groupId);
+
+                if ($group)
+                {
+                    $disks = $this->em->getRepository('AppBundle:FilesDisks')->findBy(['FilesGroups'=>$group]);
+
+                    if ($disks)
+                    {
+                        foreach ($disks as $disk)
+                        {
+                            $this->deleteDiskById($disk->getId());
+                        }
+                    }
+
+                    $this->em->remove($group);
+                    $this->em->flush();
+                }
+            }
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
+    }
+
+    public function deleteCatalogDisk ($diskId)
+    {
+        try
+        {
+            $this->deleteDiskById($diskId);
+            $this->session->getFlashBag()->add('success', 'Pomyślnie usunięto katalog');
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
+    }
+
+    private function deleteDiskById ($diskId)
+    {
+        try
+        {
+            if ($diskId)
+            {
+                $disk = $this->em->getRepository('AppBundle:FilesDisks')->find($diskId);
+
+                if ($disk)
+                {
+                    $files = $this->em->getRepository('AppBundle:Files')->findBy(['FilesDisks'=>$disk]);
+
+                    if ($files)
+                    {
+                        foreach ($files as $file)
+                        {
+                            $this->deleteFileById($file->getId());
+                        }
+                    }
+
+                    $this->em->remove($disk);
+                    $this->em->flush();
+                }
+            }
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
+    }
+
+    public function deleteCatalogFile ($fileId)
+    {
+        try
+        {
+            $this->deleteFileById($fileId);
+            $this->session->getFlashBag()->add('success', 'Pomyślnie usunięto plik');
+        }
+        catch (\Exception $exception)
+        {
+            $this->session->getFlashBag()->add('error', $exception->getMessage());
+        }
+    }
+
+    private function deleteFileById ($fileId)
+    {
+        try
+        {
+            if ($fileId)
+            {
+                $file = $this->em->getRepository('AppBundle:Files')->find($fileId);
+                if ($file)
+                {
+                    $this->deleteFramesByFileId($fileId);
+                    $this->em->remove($file);
+                    $this->em->flush();
+                }
             }
         }
         catch (\Exception $exception)
@@ -536,7 +658,7 @@ class Catlog
         return $frames;
     }
 
-    public function deleteFramesByFileId ($fileId)
+    private function deleteFramesByFileId ($fileId)
     {
         try
         {
