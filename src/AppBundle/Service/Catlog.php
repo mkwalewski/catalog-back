@@ -159,19 +159,8 @@ class Catlog
 
     public function getGroups ()
     {
-        $data = [];
-        $groups = $this->em->getRepository('AppBundle:FilesGroups')->findAll();
-
-        if ($groups)
-        {
-            foreach ($groups as $group)
-            {
-                $data[] = [
-                    'id' => $group->getId(),
-                    'name' => $group->getName(),
-                ];
-            }
-        }
+        $groups = $this->em->getRepository('AppBundle:FilesGroups')->getAll();
+        $data = $groups ? $groups : [];
 
         return $data;
     }
@@ -182,24 +171,8 @@ class Catlog
 
         if ($groupId)
         {
-            $group = $this->em->getRepository('AppBundle:FilesGroups')->find($groupId);
-
-            if ($group)
-            {
-                $disks = $this->em->getRepository('AppBundle:FilesDisks')->findBy(['FilesGroups'=>$group]);
-
-                if ($disks)
-                {
-                    foreach ($disks as $disk)
-                    {
-                        $data[] = [
-                            'id' => $disk->getId(),
-                            'path' => $disk->getPath(),
-                            'name' => $disk->getName(),
-                        ];
-                    }
-                }
-            }
+            $disks = $this->em->getRepository('AppBundle:FilesDisks')->getDisksByGroupId($groupId);
+            $data = $disks ? $disks : [];
         }
 
         return $data;
@@ -406,7 +379,7 @@ class Catlog
                     {
                         foreach ($files as $file)
                         {
-                            $this->deleteFileById($file->getId());
+                            $this->deleteFileById($file->getId(), false);
                         }
                     }
 
@@ -421,11 +394,11 @@ class Catlog
         }
     }
 
-    public function deleteCatalogFile ($fileId)
+    public function deleteCatalogFile ($fileId, $delete = false)
     {
         try
         {
-            $this->deleteFileById($fileId);
+            $this->deleteFileById($fileId, $delete);
             $this->session->getFlashBag()->add('success', 'Pomyślnie usunięto plik');
         }
         catch (\Exception $exception)
@@ -434,7 +407,7 @@ class Catlog
         }
     }
 
-    private function deleteFileById ($fileId)
+    private function deleteFileById ($fileId, $delete)
     {
         try
         {
@@ -446,6 +419,14 @@ class Catlog
                     $this->deleteFramesByFileId($fileId);
                     $this->em->remove($file);
                     $this->em->flush();
+                    if ($delete)
+                    {
+                        $fileName = $file->getFolder() . DIRECTORY_SEPARATOR . $file->getFilename() . '.' . $file->getExtension();
+                        if (file_exists($fileName))
+                        {
+                            unlink($fileName);
+                        }
+                    }
                 }
             }
         }

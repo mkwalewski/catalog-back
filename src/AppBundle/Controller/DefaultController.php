@@ -144,6 +144,46 @@ class DefaultController extends Controller
     }
 
     /**
+     * @Route("/delete_group", name="delete_group")
+     */
+    public function deleteGroupAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['id']);
+        $this->container->get('app.catlog')->deleteCatalogGroup($data['id']);
+        $response = [
+            'alerts' => $request->getSession()->getFlashBag()->all()
+        ];
+        return new JsonResponse($response);
+    }
+
+    /**
+     * @Route("/delete_disk", name="delete_disk")
+     */
+    public function deleteDiskAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['id']);
+        $this->container->get('app.catlog')->deleteCatalogDisk($data['id']);
+        $response = [
+            'alerts' => $request->getSession()->getFlashBag()->all()
+        ];
+        return new JsonResponse($response);
+    }
+
+
+    /**
+     * @Route("/delete_file", name="delete_file")
+     */
+    public function deleteFileAction (Request $request)
+    {
+        $data = Helper::getDataFromRequest($request, ['id','delete']);
+        $this->container->get('app.catlog')->deleteCatalogFile($data['id'],$data['delete']);
+        $response = [
+            'alerts' => $request->getSession()->getFlashBag()->all()
+        ];
+        return new JsonResponse($response);
+    }
+
+    /**
      * @Route("/toggle_favorite", name="toggle_favorite")
      */
     public function toggleFavoriteAction (Request $request)
