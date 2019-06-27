@@ -54,8 +54,8 @@ class DefaultController extends Controller
      */
     public function addCatalogFileAction (Request $request)
     {
-        $data = Helper::getDataFromRequest($request, ['catalog_disk_id','path']);
-        $this->container->get('app.catlog')->addCatalogFile($data['catalog_disk_id'],$data['path']);
+        $data = Helper::getDataFromRequest($request, ['catalog_disk_id','path','thumbs']);
+        $this->container->get('app.catlog')->addCatalogFile($data['catalog_disk_id'],$data['path'],$data['thumbs']);
         $response = [
             'alerts' => $request->getSession()->getFlashBag()->all()
         ];

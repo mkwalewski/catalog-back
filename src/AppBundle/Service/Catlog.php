@@ -178,7 +178,7 @@ class Catlog
         return $data;
     }
 
-    public function addCatalogFile ($catalogDiskId, $path)
+    public function addCatalogFile ($catalogDiskId, $path, $thumbs = false)
     {
         //@TODO
         try
@@ -245,6 +245,10 @@ class Catlog
                     case 'video':
                         $image = $this->addDirToPath($this->dir, self::tempDir) . self::tempThumbFileName;
                         $this->generateThumb($file, $image, true);
+                        if ($thumbs)
+                        {
+                            $this->generateFrames($file->getId());
+                        }
                         break;
                     case 'image':
                         $this->generateThumb($file, $path, false);
